@@ -1,5 +1,6 @@
 package com.honestscale.app
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -65,6 +66,7 @@ import java.math.RoundingMode
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableHighRefreshRate()
         enableEdgeToEdge()
         setContent {
             HonestScaleTheme {
@@ -351,3 +353,16 @@ private fun ConclusionCard(products: List<ProductEntry>, quotes: List<Quote>) {
 }
 
 private fun format(value: BigDecimal) = value.stripTrailingZeros().toPlainString()
+
+/** 请求屏幕在当前分辨率下的最高刷新率，避免被系统默认锁在 60Hz。 */
+private fun android.app.Activity.enableHighRefreshRate() {
+    val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        display
+    } else {
+        @Suppress("DEPRECATION") windowManager.defaultDisplay
+    }
+    val mode = display?.supportedModes
+        ?.filter { it.physicalWidth == display.mode.physicalWidth && it.physicalHeight == display.mode.physicalHeight }
+        ?.maxByOrNull { it.refreshRate } ?: return
+    window.attributes = window.attributes.apply { preferredDisplayModeId = mode.modeId }
+}

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 天平简笔：横梁、立柱、双秤盘，右盘加一颗砝码 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 横梁 -->
+    <path
+        android:pathData="M32,36 H76"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"/>
+    <!-- 立柱 -->
+    <path
+        android:pathData="M54,36 V70"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"/>
+    <!-- 底座 -->
+    <path
+        android:pathData="M42,74 H66"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"/>
+    <!-- 左盘吊索与秤盘 -->
+    <path
+        android:pathData="M32,36 L23,50 M32,36 L41,50"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M23,50 A9,9 0 0 0 41,50"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"/>
+    <!-- 右盘吊索与秤盘 -->
+    <path
+        android:pathData="M76,36 L67,50 M76,36 L85,50"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M67,50 A9,9 0 0 0 85,50"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"/>
+    <!-- 右盘砝码 -->
+    <path
+        android:pathData="M72,46 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0"
+        android:fillColor="#FFFFFF"/>
+</vector>
