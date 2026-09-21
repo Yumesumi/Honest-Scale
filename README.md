@@ -9,7 +9,7 @@
 - **液体**：ml / L 自动换算，直接得到 `元 / ml`
 - **固体**：g / kg 自动换算，直接得到 `元 / g`
 - **多层包装**：一箱 12 盒、一提若干袋这种「包装里还有包装」也能算清楚
-- **并排比价**：同时输入两个商品，谁单价更低一目了然
+- **并排比价**：同时输入多个商品，谁单价更低一目了然
 
 ## 举个例子
 
@@ -24,31 +24,37 @@
 
 「Honest Scale / 心里那杆秤」——每个人买东西时，心里都有一杆称量「值不值」的秤。它不直说价格、单位这些词，而是取那杆秤的意象：**诚实地衡量，明明白白地买。**
 
-## 平台
+## 项目状态
 
-面向 Android 的轻量离线小工具（无需联网、无需注册）。当前仓库包含可运行的最小验证版本。
+当前为 **MVP（最小验证版本）**，核心计算逻辑已完成并有单元测试覆盖，可在真机上运行。
 
-## MVP 已实现
+### MVP 已实现
 
-- 固体 `g / kg` 与液体 `ml / L` 统一换算到 `元 / g` 或 `元 / ml`
+- 固体 `g / kg` 与液体 `ml / L` 统一换算到 `元 / g` 或 `元 / ml`（BigDecimal 精确计算）
 - 两层包装：每件规格 × 每包件数 × 购买包数
 - 两个商品的单位价结果与比较结论
 - 输入校验与三个核心换算单元测试
 
 目前不做跨维度比较（例如重量与体积），因为它们不能在不引入密度信息的前提下诚实换算。
 
-## 在 Redmi K80 Ultra 上验证
+## 正式版（v1.0）目标
 
-本项目使用 Kotlin 原生 Android View，`minSdk 23`、`targetSdk 35`；Redmi K80 Ultra 的 Android/HyperOS 版本满足运行要求。
+- [ ] **最低支持 Android 10（API 29）**，覆盖更多设备
+- [ ] **精美的 UI 与动效**：全新界面设计，计算与比价结果以流畅的动画呈现
+- [ ] **自定义多产品横向比对**：不再局限于两个商品，可自由添加 / 删除任意数量的商品，同屏横向比较单位价，自动标出最划算的一个
+
+## 构建与运行
+
+本项目使用 Kotlin 原生 Android View（MVP 阶段），当前 `minSdk 23`、`targetSdk 35`。
 
 1. 安装 Android Studio（推荐最新稳定版），在 SDK Manager 安装 **Android SDK Platform 35**、**Build-Tools 35** 和 **Android SDK Platform-Tools**。
 2. 用 Android Studio 打开此仓库，等待 Gradle 同步完成。首次同步会下载 Android Gradle Plugin 与 Kotlin 依赖。
-3. 手机依次打开「设置 → 我的设备 → 全部参数与信息」，连续点击 OS 版本开启开发者选项；在「更多设置 → 开发者选项」开启 **USB 调试**。用 USB 连接后，在手机上确认调试授权。
-4. 在 Android Studio 设备列表中选择 Redmi K80 Ultra，点击 Run。应用名为「心里那杆秤」。
+3. 手机开启开发者选项与 **USB 调试**，用 USB 连接后确认调试授权。
+4. 在 Android Studio 设备列表中选择设备，点击 Run。应用名为「心里那杆秤」。
 
 > 项目已包含 Gradle Wrapper。首次同步会下载项目所需的 Gradle 与 Maven 依赖；若 Android Studio 提示缺少 SDK，请在 SDK Manager 按前述步骤安装 Android SDK Platform 35。
 
-## 国内镜像
+### 国内镜像
 
 - Maven 依赖和 Android Gradle Plugin：阿里云镜像，配置在 `settings.gradle.kts`
 - Gradle 分发包：腾讯云镜像，配置在 `gradle/wrapper/gradle-wrapper.properties`
@@ -62,6 +68,9 @@
 - [x] 双商品并排比价
 - [x] 可交互原型
 - [x] Android 原生实现（MVP）
+- [ ] minSdk 降至 29（Android 10）
+- [ ] 精美 UI 与动效
+- [ ] 多产品自定义横向比对（v1.0）
 
 ## 许可
 
