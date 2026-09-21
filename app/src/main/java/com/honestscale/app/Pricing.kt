@@ -1,5 +1,6 @@
 package com.honestscale.app
 
+import androidx.compose.runtime.Immutable
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -20,6 +21,8 @@ data class ProductInput(
     val packCount: Int = 1,
 )
 
+/** BigDecimal 会破坏稳定性推断，此注解保证 Compose 可以按值跳过未变化的重组。 */
+@Immutable
 data class UnitPrice(
     val family: MeasureKind.Family,
     val totalBaseAmount: BigDecimal,

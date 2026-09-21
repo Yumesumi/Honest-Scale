@@ -26,11 +26,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,13 +50,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -62,19 +68,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.math.BigDecimal
 import java.math.RoundingMode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableHighRefreshRate()
         enableEdgeToEdge()
+        val restored = ProductStore.load(this)
         setContent {
             HonestScaleTheme {
-                CompareScreen()
+                CompareScreen(initial = restored ?: defaultProducts())
             }
         }
     }
 }
+
+private fun defaultProducts() = listOf(
+    ProductEntry(1, name = "牛奶（箱装）", price = "48", amount = "250", itemsPerPack = "12"),
+    ProductEntry(2, name = "牛奶（单卖）", price = "6", amount = "500"),
+)
 
 /** 一件商品的录入状态；字段保持字符串，编辑过程中不强行解析。 */
 data class ProductEntry(
@@ -87,6 +101,7 @@ data class ProductEntry(
     val packCount: String = "1",
 )
 
+@Immutable
 private data class Quote(val unitPrice: UnitPrice? = null)
 
 private fun ProductEntry.quote() = try {
@@ -124,17 +139,29 @@ private val productsSaver = listSaver<List<ProductEntry>, Any>(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CompareScreen() {
-    var products by rememberSaveable(stateSaver = productsSaver) {
-        mutableStateOf(
-            listOf(
-                ProductEntry(1, name = "牛奶（箱装）", price = "48", amount = "250", itemsPerPack = "12"),
-                ProductEntry(2, name = "牛奶（单卖）", price = "6", amount = "500"),
-            )
-        )
+private fun CompareScreen(initial: List<ProductEntry>) {
+    var products by rememberSaveable(stateSaver = productsSaver) { mutableStateOf(initial) }
+    val context = LocalContext.current
+
+    val quotes = remember(products) { products.map { it.quote() } }
+    val winners = remember(quotes) { Pricing.cheapestPerFamily(quotes.mapNotNull { it.unitPrice }) }
+
+    LaunchedEffect(products) {
+        withContext(Dispatchers.IO) { ProductStore.save(context, products) }
     }
-    val quotes = products.map { it.quote() }
-    val winners = Pricing.cheapestPerFamily(quotes.mapNotNull { it.unitPrice })
+
+    val onEdit = remember {
+        { id: Long, updated: ProductEntry ->
+            products = products.map { if (it.id == id) updated else it }
+        }
+    }
+    val onDelete = remember {
+        { id: Long -> products = products.filterNot { it.id == id } }
+    }
+    val onAdd = remember {
+        { products = products + ProductEntry((products.maxOfOrNull { it.id } ?: 0L) + 1) }
+    }
+    val onReset = remember { { products = defaultProducts() } }
 
     Scaffold(
         topBar = {
@@ -145,12 +172,24 @@ private fun CompareScreen() {
                         Text("剥掉包装，看清真实单价", style = MaterialTheme.typography.bodySmall)
                     }
                 },
+                actions = {
+                    IconButton(onClick = onReset) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "重置")
+                    }
+                },
+            )
+        },
+        bottomBar = {
+            ConclusionCard(
+                products = products,
+                quotes = quotes,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 24.dp),
+            contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             itemsIndexed(products, key = { _, entry -> entry.id }) { index, entry ->
@@ -167,23 +206,18 @@ private fun CompareScreen() {
                     entry = entry,
                     quote = quote,
                     isWinner = isWinner,
+                    indexLabel = (index + 1).toString(),
                     canDelete = products.size > 1,
-                    onEdit = { updated -> products = products.map { if (it.id == entry.id) updated else it } },
-                    onDelete = { products = products.filterNot { it.id == entry.id } },
+                    onEdit = onEdit,
+                    onDelete = onDelete,
                     modifier = Modifier.animateItem(),
                 )
             }
             item {
-                OutlinedButton(
-                    onClick = { products = products + ProductEntry((products.maxOfOrNull { it.id } ?: 0L) + 1) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
+                OutlinedButton(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Filled.Add, contentDescription = null)
                     Text("添加商品")
                 }
-            }
-            item {
-                ConclusionCard(products = products, quotes = quotes)
             }
         }
     }
@@ -195,9 +229,10 @@ private fun ProductCard(
     entry: ProductEntry,
     quote: Quote,
     isWinner: Boolean,
+    indexLabel: String,
     canDelete: Boolean,
-    onEdit: (ProductEntry) -> Unit,
-    onDelete: () -> Unit,
+    onEdit: (Long, ProductEntry) -> Unit,
+    onDelete: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val unitPrice = quote.unitPrice
@@ -208,23 +243,34 @@ private fun ProductCard(
 
     OutlinedCard(modifier = modifier.fillMaxWidth(), border = BorderStroke(1.dp, border)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Text(
+                        indexLabel,
+                        Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
                 OutlinedTextField(
                     value = entry.name,
-                    onValueChange = { onEdit(entry.copy(name = it)) },
+                    onValueChange = { onEdit(entry.id, entry.copy(name = it)) },
                     label = { Text("商品名称") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
                 AnimatedVisibility(visible = canDelete, enter = fadeIn(), exit = fadeOut()) {
-                    IconButton(onClick = onDelete) {
+                    IconButton(onClick = { onDelete(entry.id) }) {
                         Icon(Icons.Filled.Delete, contentDescription = "删除")
                     }
                 }
             }
             OutlinedTextField(
                 value = entry.price,
-                onValueChange = { onEdit(entry.copy(price = it)) },
+                onValueChange = { onEdit(entry.id, entry.copy(price = it)) },
                 label = { Text("总价（元）") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -232,7 +278,7 @@ private fun ProductCard(
             )
             OutlinedTextField(
                 value = entry.amount,
-                onValueChange = { onEdit(entry.copy(amount = it)) },
+                onValueChange = { onEdit(entry.id, entry.copy(amount = it)) },
                 label = { Text("每件规格") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -242,7 +288,7 @@ private fun ProductCard(
                 MeasureKind.entries.forEachIndexed { i, kind ->
                     SegmentedButton(
                         selected = entry.unit == kind,
-                        onClick = { onEdit(entry.copy(unit = kind)) },
+                        onClick = { onEdit(entry.id, entry.copy(unit = kind)) },
                         shape = SegmentedButtonDefaults.itemShape(index = i, count = MeasureKind.entries.size),
                     ) {
                         Text(kind.displayName)
@@ -252,7 +298,7 @@ private fun ProductCard(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = entry.itemsPerPack,
-                    onValueChange = { onEdit(entry.copy(itemsPerPack = it)) },
+                    onValueChange = { onEdit(entry.id, entry.copy(itemsPerPack = it)) },
                     label = { Text("每包含件数") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -260,7 +306,7 @@ private fun ProductCard(
                 )
                 OutlinedTextField(
                     value = entry.packCount,
-                    onValueChange = { onEdit(entry.copy(packCount = it)) },
+                    onValueChange = { onEdit(entry.id, entry.copy(packCount = it)) },
                     label = { Text("购买包数") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -319,10 +365,10 @@ private fun ProductCard(
 }
 
 @Composable
-private fun ConclusionCard(products: List<ProductEntry>, quotes: List<Quote>) {
+private fun ConclusionCard(products: List<ProductEntry>, quotes: List<Quote>, modifier: Modifier = Modifier) {
     val valid = quotes.mapIndexedNotNull { i, q -> q.unitPrice?.let { i to it } }
-    val winners = Pricing.cheapestPerFamily(valid.map { it.second })
-    fun displayName(index: Int) = products[index].name.ifBlank { "商品 ${'A' + index}" }
+    val winners = remember(valid) { Pricing.cheapestPerFamily(valid.map { it.second }) }
+    fun displayName(index: Int) = products[index].name.ifBlank { "商品 ${index + 1}" }
 
     val text = when {
         valid.isEmpty() -> "填写价格与规格后，各单位价会自动算出"
@@ -335,7 +381,11 @@ private fun ConclusionCard(products: List<ProductEntry>, quotes: List<Quote>) {
         }.joinToString("\n")
     }
 
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+    ) {
         AnimatedContent(
             targetState = text,
             transitionSpec = { (fadeIn() + slideInVertically { it / 2 }).togetherWith(fadeOut()) },
@@ -343,7 +393,7 @@ private fun ConclusionCard(products: List<ProductEntry>, quotes: List<Quote>) {
         ) { value ->
             Text(
                 value,
-                Modifier.fillMaxWidth().padding(16.dp),
+                Modifier.fillMaxWidth().padding(14.dp),
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.bodyLarge,

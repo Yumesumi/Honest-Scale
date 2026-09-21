@@ -15,8 +15,26 @@ android {
         applicationId = "com.honestscale.app"
         minSdk = 29
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.1"
+        versionCode = 4
+        versionName = "1.0.2"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("honest-scale.keystore")
+            storePassword = "honest-scale-2026"
+            keyAlias = "honestscale"
+            keyPassword = "honest-scale-2026"
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
+        }
     }
 
     buildFeatures {
