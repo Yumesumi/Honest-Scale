@@ -43,14 +43,7 @@ object Pricing {
         )
     }
 
-    fun comparison(first: UnitPrice, second: UnitPrice): Comparison? {
-        if (first.family != second.family) return null
-        return when (first.yuanPerBaseUnit.compareTo(second.yuanPerBaseUnit)) {
-            -1 -> Comparison.FIRST_CHEAPER
-            1 -> Comparison.SECOND_CHEAPER
-            else -> Comparison.TIE
-        }
-    }
+    /** 每个单位族（重量 / 体积）中单位价最低的一个；跨族商品互不比较。 */
+    fun cheapestPerFamily(prices: List<UnitPrice>): Map<MeasureKind.Family, UnitPrice> =
+        prices.groupBy { it.family }.mapValues { (_, group) -> group.minBy { it.yuanPerBaseUnit } }
 }
-
-enum class Comparison { FIRST_CHEAPER, SECOND_CHEAPER, TIE }
